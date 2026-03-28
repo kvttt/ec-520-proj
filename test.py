@@ -64,7 +64,7 @@ axes[2, 3].imshow(u_bilateral, cmap='gray', vmin=0, vmax=1)
 axes[2, 3].set_title("Bilateral")
 axes[3, 3].imshow(u_bilateral - u_clean, cmap='gray', vmin=-0.1, vmax=0.1)
 axes[3, 3].set_title(f"MSE = {mse_bilateral:.4f}\nPSNR = {psnr_bilateral:.2f} dB\nSSIM = {ssim_bilateral:.4f}")
-fig.savefig("fig1.png")
+fig.savefig("fig1.png", dpi=300)
 plt.show()
 
 
@@ -93,7 +93,7 @@ axes[2].set_xticks([3, 5, 7, 9, 11])
 axes[2].set_ylabel("SSIM")
 axes[2].grid(True, linestyle='--', alpha=0.5)
 fig.suptitle("Performance of NLM at different patch sizes")
-fig.savefig("fig2.png")
+fig.savefig("fig2.png", dpi=300)
 plt.show()
 
 # fix patch_size = 7, h = 0.1, and vary patch_distance
@@ -120,7 +120,7 @@ axes[2].set_xticks([7, 9, 11, 13, 15])
 axes[2].set_ylabel("SSIM")
 axes[2].grid(True, linestyle='--', alpha=0.5)
 fig.suptitle("Performance of NLM at different patch distances")
-fig.savefig("fig3.png")
+fig.savefig("fig3.png", dpi=300)
 plt.show()
 
 # fix patch_size = 7, patch_distance = 11, and vary h
@@ -147,5 +147,5 @@ axes[2].set_xticks([0.05, 0.1, 0.15, 0.2, 0.25])
 axes[2].set_ylabel("SSIM")
 axes[2].grid(True, linestyle='--', alpha=0.5)
 fig.suptitle("Performance of NLM at different h")
-fig.savefig("fig4.png")
+fig.savefig("fig4.png", dpi=300)
 plt.show()
