@@ -1,16 +1,6 @@
 EC 520 Project: Image denoising using non-LSI filters
 =====================================================
 
-Currently, we have implemented the non-local means (NLM) algorithm that is more than 10x faster than the implementation in scikit-image. The following results is obtained on a 512x512 image on an Apple M4 Max CPU with 36 GB memory.
-
-```text
-skimage: 4818.30 ms
-nlm_numpy: 4460.29 ms
-nlm_numba: 460.19 ms
-nlm_numpy vs skimage: RMSE = 2.30e-03
-nlm_numba vs skimage: RMSE = 2.22e-03
-```
-
 Requirement
 -----------
 
@@ -18,7 +8,19 @@ Requirement
 pip install numba numpy scipy scikit-image
 ```
 
-Usage
------
+Preliminary results
+-------------------
 
-See `nlm_benchmark.py` for the benchmark code. 
+We compared NLM and bilateral filtering (not implemented yet) to Gaussian, median, and Wiener filtering on the `'barbara.tif'` image. The results are shown in the following figure.
+
+![fig1.png](fig1.png)
+
+We further characterized the performance of NLM under different patch sizes, search window sizes, and smoothing parameter `h`. The results are shown in the following figures.
+
+![fig2.png](fig2.png)
+
+![fig3.png](fig3.png)
+
+![fig4.png](fig4.png)
+
+To reproduce the results, run `test.py`.
