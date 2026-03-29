@@ -1,0 +1,1 @@
+pip install numba numpy scipy scikit-image
