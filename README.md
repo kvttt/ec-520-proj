@@ -5,7 +5,7 @@ Requirement
 -----------
 
 ```bash
-pip install numba numpy scipy scikit-image
+pip install numba numpy scipy scikit-image matplotlib pillow
 ```
 
 Figure/table plan
