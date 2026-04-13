@@ -17,9 +17,15 @@ Main:
 - [x] Figure 3 (a). Grid search over `h` for non-local means using grayscale `barbara.tif`.
 - [x] Figure 3 (b). Grid search over `h` for non-local means using RGB `bu2010.tif` (denoising in RGB space).
 - [x] Figure 3 (c). Grid search over `h` for non-local means using RGB `bu2010.tif` (denoising in LAB space). 
+
+![Figure 3](figures/fig3/fig3.png)
+
 - [x] Figure 4 (a). Grid search over combinations of `sigma_spatial` and `sigma_range` for bilateral filtering using grayscale `barbara.tif`.
 - [x] Figure 4 (b). Grid search over combinations of `sigma_spatial` and `sigma_range` for bilateral filtering using RGB `bu2010.tif` (denoising in RGB space).
 - [x] Figure 4 (c). Grid search over combinations of `sigma_spatial` and `sigma_range` for bilateral filtering using RGB `bu2010.tif` (denoising in LAB space).
+
+![Figure 4](figures/fig4/fig4.png)
+
 - [ ] Figure 5. Comparison on `barbara.tif`.
 - [ ] Figure 6. Comparison on `bu2010.tif`.
 - [ ] Table 1. Quantitative results on BSD100 and Urban100.
