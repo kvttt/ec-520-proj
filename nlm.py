@@ -14,53 +14,74 @@ def _gauss_kernel(s):
 def nlm_numpy(image, patch_size=7, patch_distance=11, h=0.1):
     kernel = _gauss_kernel(patch_size).astype(np.float64)
     img = np.asarray(image, dtype=np.float64)
+    squeeze_output = False
+    if img.ndim == 2:
+        img = img[:, :, np.newaxis]
+        squeeze_output = True
     s, p = patch_distance, patch_size // 2
-    padded = np.pad(img, s + p, mode="reflect")
-    H, W = img.shape
+    pad = s + p
+    padded = np.pad(img, ((pad, pad), (pad, pad), (0, 0)), mode="reflect")
+    H, W, n_channels = img.shape
     h2 = h * h
-    C = np.zeros((H, W))
-    I  = np.zeros((H, W))
+    C = np.zeros((H, W), dtype=np.float64)
+    I = np.zeros((H, W, n_channels), dtype=np.float64)
     for dy2 in range(2 * s + 1):
         for dy1 in range(2 * s + 1):
             idx2 = dy2 + p
             idx1 = dy1 + p
-            shifted = padded[idx2:idx2 + H, idx1:idx1 + W]
-            dist = convolve((img - shifted) ** 2, kernel, mode="reflect")
+            shifted = padded[idx2:idx2 + H, idx1:idx1 + W, :]
+            sq_dist = np.sum((img - shifted) ** 2, axis=2)
+            dist = convolve(sq_dist, kernel, mode="reflect")
             w = np.exp(-np.maximum(dist, 0.0) / h2)
             C += w
-            I += w * shifted
-    return np.clip(I / C, 0.0, 1.0)
+            I += w[:, :, np.newaxis] * shifted
+    out = I / C[:, :, np.newaxis]
+    if squeeze_output:
+        return out[:, :, 0]
+    return out
 
 
 @njit(parallel=True, cache=True)
 def _nlm(padded, kernel, s, p, h2):
-    pH, pW = padded.shape
+    pH, pW, n_channels = padded.shape
     pad = s + p
     H, W = pH - 2 * pad, pW - 2 * pad
-    out = np.empty((H, W), dtype=np.float64)
+    out = np.empty((H, W, n_channels), dtype=np.float64)
     for x2 in prange(H):
         for x1 in range(W):  # index the output pixel NL[u][x1, x2]
             x2pp, x1pp = x2 + pad, x1 + pad
-            C, I = 0.0, 0.0  # normalizing constant, integral
+            C = 0.0  # normalizing constant
+            I = np.zeros(n_channels, dtype=np.float64)  # integral per channel
             for dy2 in range(-s, s + 1):
                 for dy1 in range(-s, s + 1):  # for evaluating the intergral
                     y2pp, y1pp = x2pp + dy2, x1pp + dy1
                     dist = 0.0
                     for kz2 in range(-p, p + 1):
                         for kz1 in range(-p, p + 1):  # for evaluating the exponential
-                            d = padded[x2pp + kz2, x1pp + kz1] - padded[y2pp + kz2, y1pp + kz1]
-                            dist += kernel[kz2 + p, kz1 + p] * d * d
+                            k = kernel[kz2 + p, kz1 + p]
+                            for ch in range(n_channels):
+                                d = padded[x2pp + kz2, x1pp + kz1, ch] - padded[y2pp + kz2, y1pp + kz1, ch]
+                                dist += k * d * d
                     w = np.exp(-max(dist, 0.0) / h2)
                     C += w
-                    I += w * padded[y2pp, y1pp]
-            out[x2, x1] = I / C
+                    for ch in range(n_channels):
+                        I[ch] += w * padded[y2pp, y1pp, ch]
+            for ch in range(n_channels):
+                out[x2, x1, ch] = I[ch] / C
     return out
 
 
 def nlm_numba(image, patch_size=7, patch_distance=11, h=0.1):
     kernel = _gauss_kernel(patch_size).astype(np.float64)
     img = np.asarray(image, dtype=np.float64)
+    squeeze_output = False
+    if img.ndim == 2:
+        img = img[:, :, np.newaxis]
+        squeeze_output = True
     s, p = patch_distance, patch_size // 2
-    padded = np.pad(img, s + p, mode="reflect")
+    pad = s + p
+    padded = np.pad(img, ((pad, pad), (pad, pad), (0, 0)), mode="reflect")
     out = _nlm(padded, kernel, s, p, h * h)
-    return np.clip(out, 0.0, 1.0)
+    if squeeze_output:
+        return out[:, :, 0]
+    return out
