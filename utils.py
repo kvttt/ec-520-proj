@@ -5,6 +5,9 @@ from skimage.color import rgb2lab, lab2rgb
 from skimage.metrics import mean_squared_error, peak_signal_noise_ratio, structural_similarity
 import torch
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 def barbara():
     return np.array(Image.open('data/barbara.tif')).astype(np.float64) / 255.0
