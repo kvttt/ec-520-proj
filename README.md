@@ -8,6 +8,15 @@ Requirement
 pip install numba numpy scipy scikit-image matplotlib pillow
 ```
 
+
+Download datasets (BSD100 and Urban100)
+---------------------------------------
+
+```bash
+bash data.sh
+```
+
+
 Figure/table plan
 -----------
 
