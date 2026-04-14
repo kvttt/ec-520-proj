@@ -17,28 +17,30 @@ sigma = 0.1
 
 # DataFrame
 df = pd.DataFrame(columns=[
-    "sigma_spatial", "sigma_range", "MSE", "PSNR", "SSIM", "Method"
+    "sigma_spatial", "sigma_range", "MSE", "PSNR", "SSIM", "Perceptual", "Method"
 ])
 
 
 # gray
 u_clean = barbara()
 u_noisy = imnoise(u_clean, sigma, rng)
-u_noisy, mse_noisy, psnr_noisy, ssim_noisy = get_result_gray(lambda x: x, u_noisy, u_clean)
+u_noisy, mse_noisy, psnr_noisy, ssim_noisy, perceptual_noisy = get_result_gray(lambda x: x, u_noisy, u_clean)
 
-mse_bf_lst, psnr_bf_lst, ssim_bf_lst = [], [], []
+mse_bf_lst, psnr_bf_lst, ssim_bf_lst, perceptual_bf_lst = [], [], [], []
 for sigma_spatial in [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]:
     for sigma_range in [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45]:
-        u_bf, mse_bf, psnr_bf, ssim_bf = get_result_gray(bf, u_noisy, u_clean, sigma_spatial=sigma_spatial, sigma_range=sigma_range)
+        u_bf, mse_bf, psnr_bf, ssim_bf, perceptual_bf = get_result_gray(bf, u_noisy, u_clean, sigma_spatial=sigma_spatial, sigma_range=sigma_range)
         mse_bf_lst.append(mse_bf)
         psnr_bf_lst.append(psnr_bf)
         ssim_bf_lst.append(ssim_bf)
+        perceptual_bf_lst.append(perceptual_bf)
         df = pd.concat([df, pd.DataFrame({
             "sigma_spatial": sigma_spatial,
             "sigma_range": sigma_range,
             "MSE": mse_bf,
             "PSNR": psnr_bf,
             "SSIM": ssim_bf,
+            "Perceptual": perceptual_bf,
             "Method": "Grayscale",
         }, index=[0])], ignore_index=True)
         print(df.tail(1))
@@ -47,38 +49,42 @@ for sigma_spatial in [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]:
 # rgb
 u_clean = bu2010()
 u_noisy = imnoise(u_clean, sigma, rng)
-u_noisy, mse_noisy, psnr_noisy, ssim_noisy = get_result_rgb(lambda x: x, u_noisy, u_clean)
+u_noisy, mse_noisy, psnr_noisy, ssim_noisy, perceptual_noisy = get_result_rgb(lambda x: x, u_noisy, u_clean)
 
-mse_bf_lst_rgb, psnr_bf_lst_rgb, ssim_bf_lst_rgb = [], [], []
+mse_bf_lst_rgb, psnr_bf_lst_rgb, ssim_bf_lst_rgb, perceptual_bf_lst_rgb = [], [], [], []
 for sigma_spatial in [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]:
     for sigma_range in [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45]:
-        u_bf_rgb, mse_bf_rgb, psnr_bf_rgb, ssim_bf_rgb = get_result_rgb(bf, u_noisy, u_clean, sigma_spatial=sigma_spatial, sigma_range=sigma_range)
+        u_bf_rgb, mse_bf_rgb, psnr_bf_rgb, ssim_bf_rgb, perceptual_bf_rgb = get_result_rgb(bf, u_noisy, u_clean, sigma_spatial=sigma_spatial, sigma_range=sigma_range)
         mse_bf_lst_rgb.append(mse_bf_rgb)
         psnr_bf_lst_rgb.append(psnr_bf_rgb)
         ssim_bf_lst_rgb.append(ssim_bf_rgb)
+        perceptual_bf_lst_rgb.append(perceptual_bf_rgb)
         df = pd.concat([df, pd.DataFrame({
             "sigma_spatial": sigma_spatial,
             "sigma_range": sigma_range,
             "MSE": mse_bf_rgb,
             "PSNR": psnr_bf_rgb,
             "SSIM": ssim_bf_rgb,
+            "Perceptual": perceptual_bf_rgb,
             "Method": "RGB (denoised in RGB)",
         }, index=[0])], ignore_index=True)
         print(df.tail(1))
 
-mse_bf_lst_lab, psnr_bf_lst_lab, ssim_bf_lst_lab = [], [], []
+mse_bf_lst_lab, psnr_bf_lst_lab, ssim_bf_lst_lab, perceptual_bf_lst_lab = [], [], [], []
 for sigma_spatial in [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]:
     for sigma_range in [5, 10, 15, 20, 25, 30, 35, 40, 45]:
-        u_bf_lab, mse_bf_lab, psnr_bf_lab, ssim_bf_lab = get_result_lab(bf, u_noisy, u_clean, sigma_spatial=sigma_spatial, sigma_range=sigma_range)
+        u_bf_lab, mse_bf_lab, psnr_bf_lab, ssim_bf_lab, perceptual_bf_lab = get_result_lab(bf, u_noisy, u_clean, sigma_spatial=sigma_spatial, sigma_range=sigma_range)
         mse_bf_lst_lab.append(mse_bf_lab)
         psnr_bf_lst_lab.append(psnr_bf_lab)
         ssim_bf_lst_lab.append(ssim_bf_lab)
+        perceptual_bf_lst_lab.append(perceptual_bf_lab)
         df = pd.concat([df, pd.DataFrame({
             "sigma_spatial": sigma_spatial,
             "sigma_range": sigma_range,
             "MSE": mse_bf_lab,
             "PSNR": psnr_bf_lab,
             "SSIM": ssim_bf_lab,
+            "Perceptual": perceptual_bf_lab,
             "Method": "RGB (denoised in CIELAB)",
         }, index=[0])], ignore_index=True)
         print(df.tail(1))

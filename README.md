@@ -5,7 +5,7 @@ Requirement
 -----------
 
 ```bash
-pip install numba numpy scipy scikit-image matplotlib pillow
+pip install numba numpy scipy scikit-image matplotlib pillow lpips
 ```
 
 

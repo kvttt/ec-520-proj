@@ -1,7 +1,9 @@
+import lpips
 import numpy as np
 from PIL import Image
 from skimage.color import rgb2lab, lab2rgb
 from skimage.metrics import mean_squared_error, peak_signal_noise_ratio, structural_similarity
+import torch
 
 
 def barbara():
@@ -33,7 +35,8 @@ def get_result_gray(handle, u_noisy, u_clean, **kwargs):
     mse_val = mse(u_clean, u_hat)
     psnr_val = psnr(u_clean, u_hat)
     ssim_val = ssim(u_clean, u_hat)
-    return u_hat, mse_val, psnr_val, ssim_val
+    perceptual_val = perceptual(u_clean, u_hat)
+    return u_hat, mse_val, psnr_val, ssim_val, perceptual_val
 
 
 def get_result_rgb(handle, u_noisy, u_clean, **kwargs):
@@ -41,7 +44,8 @@ def get_result_rgb(handle, u_noisy, u_clean, **kwargs):
     mse_val = mse(u_clean, u_hat)
     psnr_val = psnr(u_clean, u_hat)
     ssim_val = ssim(u_clean, u_hat)
-    return u_hat, mse_val, psnr_val, ssim_val
+    perceptual_val = perceptual(u_clean, u_hat)
+    return u_hat, mse_val, psnr_val, ssim_val, perceptual_val
 
 
 def get_result_lab(handle, u_noisy, u_clean, **kwargs):
@@ -51,4 +55,16 @@ def get_result_lab(handle, u_noisy, u_clean, **kwargs):
     mse_val = mse(u_clean, u_hat)
     psnr_val = psnr(u_clean, u_hat)
     ssim_val = ssim(u_clean, u_hat)
-    return u_hat, mse_val, psnr_val, ssim_val
+    perceptual_val = perceptual(u_clean, u_hat)
+    return u_hat, mse_val, psnr_val, ssim_val, perceptual_val
+
+
+def to_tensor(u):
+    if u.ndim == 2:
+        u = np.stack([u, u, u], axis=-1)
+    return torch.tensor(u).permute(2, 0, 1).unsqueeze(0).float() * 2 - 1
+
+
+def perceptual(u_clean, u_hat):
+    loss_fn = lpips.LPIPS(verbose=False)
+    return loss_fn(to_tensor(u_clean), to_tensor(u_hat)).item()
