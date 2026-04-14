@@ -5,10 +5,10 @@ unzip 38256840
 unzip 38256858
 rm -f 38256840
 rm -f 38256858
-for id in {001..010}; do
+for id in {001..100}; do
     mv ./BSD100/image_SRF_4/img_${id}_SRF_4_HR.png ./BSD100/
 done
-for id in {001..010}; do
+for id in {001..100}; do
     mv ./Urban100/image_SRF_4/img_${id}_SRF_4_HR.png ./Urban100/
 done
 rm -rf ./BSD100/image_SRF_2
