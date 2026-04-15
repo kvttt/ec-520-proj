@@ -57,5 +57,5 @@ axes[1, 2].set_title(f"NLM\nMSE: {mse_nlm:.4f}, PSNR: {psnr_nlm:.2f} dB,\nSSIM: 
 axes[1, 3].imshow(u_bf, cmap='gray', vmin=0, vmax=1)
 axes[1, 3].set_title(f"BF\nMSE: {mse_bf:.4f}, PSNR: {psnr_bf:.2f} dB,\nSSIM: {ssim_bf:.4f}, Perceptual: {perceptual_bf:.4f}")
 
-plt.savefig("figures/fig6/fig6.png")
+fig.savefig("figures/fig6/fig6.png", dpi=300)
 plt.show()

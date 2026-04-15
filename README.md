@@ -35,13 +35,21 @@ Main:
 
 ![Figure 4](figures/fig4/fig4.png)
 
-- [ ] Figure 5. Comparison on `barbara.tif`. (Note: baselines are not tuned, median and Gaussian--Markov restoration are not implemented.)
+- [x] Figure 5. Comparison on `barbara.tif`. (Note: baselines are not tuned, median and Gaussian--Markov restoration are not implemented.)
 
 ![Figure 5](figures/fig5/fig5.png)
 
-- [ ] Figure 6. Comparison on `bu2010.tif`. (Note: baselines are not tuned, median and Gaussian--Markov restoration are not implemented.)
+- [x] Figure 6. Comparison on `bu2010.tif`. (Note: baselines are not tuned, median and Gaussian--Markov restoration are not implemented.)
 
 ![Figure 6](figures/fig6/fig6.png)
+
+- [x] Figure 7. Comparison on BSD100.
+
+![Figure 7](figures/fig7/fig7.png)
+
+- [x] Figure 8. Comparison on Urban100.
+
+![Figure 8](figures/fig8/fig8.png)
 
 - [x] Table 1. Quantitative results on BSD100 and Urban100.
 

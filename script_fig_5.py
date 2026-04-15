@@ -71,5 +71,5 @@ axes[2, 3].set_title("Bilateral Filter")
 axes[3, 3].imshow(u_bf - u_clean, cmap='gray', vmin=-0.5, vmax=0.5)
 axes[3, 3].set_title(f"MSE: {mse_bf:.4f}, PSNR: {psnr_bf:.2f} dB,\nSSIM: {ssim_bf:.4f}, Perceptual: {perceptual_bf:.4f}")
 
-plt.savefig("figures/fig5/fig5.png")
+fig.savefig("figures/fig5/fig5.png", dpi=300)
 plt.show()
