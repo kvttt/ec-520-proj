@@ -31,7 +31,7 @@ u_nlm, mse_nlm, psnr_nlm, ssim_nlm, perceptual_nlm = get_result_rgb(nlm, u_noisy
 u_bf, mse_bf, psnr_bf, ssim_bf, perceptual_bf = get_result_rgb(bf, u_noisy, u_clean, sigma_spatial=1.5, sigma_range=0.25)
 
 
-fig, axes = plt.subplots(1, 4, figsize=(20, 5), layout="constrained")
+fig, axes = plt.subplots(1, 4, figsize=(12, 3), layout="constrained")
 
 for ax in axes.flat:
     ax.set_xticks([])
@@ -50,5 +50,5 @@ axes[2].set_title(f"NLM\nMSE: {mse_nlm:.4f}, PSNR: {psnr_nlm:.2f} dB\nSSIM: {ssi
 axes[3].imshow(u_bf)
 axes[3].set_title(f"Bilateral Filter\nMSE: {mse_bf:.4f}, PSNR: {psnr_bf:.2f} dB\nSSIM: {ssim_bf:.4f}, Perceptual: {perceptual_bf:.4f}")
 
-fig.savefig("figures/fig8/fig8.png", dpi=300)
+fig.savefig("figures/fig8/fig8.png", dpi=600, bbox_inches="tight")
 plt.show()
