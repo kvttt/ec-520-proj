@@ -1,3 +1,10 @@
+"""
+File Name: script_fig_4.py
+Author: Kaibo
+Function: Sweeps bilateral filtering parameters and plots PSNR heatmaps.
+Reference: None.
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd

@@ -1,3 +1,10 @@
+"""
+File Name: script_fig_3.py
+Author: Kaibo
+Function: Sweeps NLM smoothing strength and plots its effect on denoising quality.
+Reference: None.
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd

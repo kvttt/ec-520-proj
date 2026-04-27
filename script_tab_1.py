@@ -1,141 +1,191 @@
-import matplotlib.pyplot as plt
+"""
+File Name: script_tab_1.py
+Author: Kaibo & Jiatong
+Function: Evaluates AWGN denoising methods on merged validation and test subsets.
+Reference: None.
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from PIL import Image
 
-from utils import imnoise, get_result_rgb
-from nlm import nlm_numba as nlm
+from baseline import my_Huber_Markov, my_gaussian, my_median, my_wiener, my_bayesian_markov
 from bf import bilateral_filter_numba as bf
-from baseline import (
-    my_gaussian, my_median, my_wiener, my_bayesian_markov,
-)
-
-import glob
-import os
+from nlm import nlm_numba as nlm
+from script_dncnn_eval import dncnn_denoise
+from utils import get_result_rgb, imnoise
 
 
-rng = np.random.default_rng(0)
-sigma = 0.1
+METHOD_ORDER = ["Noisy", "Gaussian", "Median", "Wiener", "Bayesian Markov", "Huber Markov", "NLM", "BF", "DnCNN"]
+CLASSICAL_METHODS = [
+    ("Noisy", lambda x: x, {}),
+    ("Gaussian", my_gaussian, {}),
+    ("Median", my_median, {}),
+    ("Wiener", my_wiener, {}),
+    ("Bayesian Markov", my_bayesian_markov, {}),
+    ("Huber Markov", my_Huber_Markov, {}),
+    ("NLM", nlm, {"h": 0.18}),
+    ("BF", bf, {"sigma_spatial": 1.5, "sigma_range": 0.25}),
+]
 
 
-# DataFrame
-df = pd.DataFrame(columns=[
-    "Image ID", "MSE", "PSNR", "SSIM", "Perceptual", "Method"
-])
-
-for ds in ["BSD100", "Urban100"]:
-    for fn in sorted(glob.glob(f"data/{ds}/*.png")):
-        imgid = f'{ds}_{os.path.basename(fn).split(".")[0].split("_")[1]}'
-        img = np.array(Image.open(fn)).astype(np.float64) / 255.0
-        u_clean = img
-        u_noisy = imnoise(u_clean, sigma, rng)
-        u_noisy, mse_noisy, psnr_noisy, ssim_noisy, perceptual_noisy = get_result_rgb(lambda x: x, u_noisy, u_clean)
-        u_gausian, mse_gausian, psnr_gausian, ssim_gausian, perceptual_gausian = get_result_rgb(my_gaussian, u_noisy, u_clean)
-        u_median, mse_median, psnr_median, ssim_median, perceptual_median = get_result_rgb(my_median, u_noisy, u_clean)
-        u_wiener, mse_wiener, psnr_wiener, ssim_wiener, perceptual_wiener = get_result_rgb(my_wiener, u_noisy, u_clean)
-        u_bayesian_markov, mse_bayesian_markov, psnr_bayesian_markov, ssim_bayesian_markov, perceptual_bayesian_markov = get_result_rgb(my_bayesian_markov, u_noisy, u_clean)
-        u_nlm, mse_nlm, psnr_nlm, ssim_nlm, perceptual_nlm = get_result_rgb(nlm, u_noisy, u_clean, h=0.18)
-        u_bf, mse_bf, psnr_bf, ssim_bf, perceptual_bf = get_result_rgb(bf, u_noisy, u_clean, sigma_spatial=1.5, sigma_range=0.25)
-        df = pd.concat([df, pd.DataFrame({
-            "Image ID": imgid,
-            "MSE": mse_noisy,
-            "PSNR": psnr_noisy,
-            "SSIM": ssim_noisy,
-            "Perceptual": perceptual_noisy,
-            "Method": "Noisy",
-        }, index=[0])], ignore_index=True)
-        df = pd.concat([df, pd.DataFrame({
-            "Image ID": imgid,
-            "MSE": mse_gausian,
-            "PSNR": psnr_gausian,
-            "SSIM": ssim_gausian,
-            "Perceptual": perceptual_gausian,
-            "Method": "Gaussian",
-        }, index=[0])], ignore_index=True)
-        df = pd.concat([df, pd.DataFrame({
-            "Image ID": imgid,
-            "MSE": mse_median,
-            "PSNR": psnr_median,
-            "SSIM": ssim_median,
-            "Perceptual": perceptual_median,
-            "Method": "Median",
-        }, index=[0])], ignore_index=True)
-        df = pd.concat([df, pd.DataFrame({
-            "Image ID": imgid,
-            "MSE": mse_wiener,
-            "PSNR": psnr_wiener,
-            "SSIM": ssim_wiener,
-            "Perceptual": perceptual_wiener,
-            "Method": "Wiener",
-        }, index=[0])], ignore_index=True)
-        df = pd.concat([df, pd.DataFrame({
-            "Image ID": imgid,
-            "MSE": mse_bayesian_markov,
-            "PSNR": psnr_bayesian_markov,
-            "SSIM": ssim_bayesian_markov,
-            "Perceptual": perceptual_bayesian_markov,
-            "Method": "Bayesian Markov",
-        }, index=[0])], ignore_index=True)
-        df = pd.concat([df, pd.DataFrame({
-            "Image ID": imgid,
-            "MSE": mse_nlm,
-            "PSNR": psnr_nlm,
-            "SSIM": ssim_nlm,
-            "Perceptual": perceptual_nlm,
-            "Method": "NLM",
-        }, index=[0])], ignore_index=True)
-        df = pd.concat([df, pd.DataFrame({
-            "Image ID": imgid,
-            "MSE": mse_bf,
-            "PSNR": psnr_bf,
-            "SSIM": ssim_bf,
-            "Perceptual": perceptual_bf,
-            "Method": "BF",
-        }, index=[0])], ignore_index=True)
-        print(df.tail(8))
-
-df.to_csv("tables/tab1/tab1_raw.csv", index=False)
+def parse_args() -> argparse.Namespace:
+    project_root = Path(__file__).resolve().parent.parent
+    parser = argparse.ArgumentParser(description="Evaluate all AWGN denoisers on the merged held-out split.")
+    parser.add_argument(
+        "--split-root",
+        type=Path,
+        default=project_root / "data" / "dncnn_split",
+        help="Root containing the fixed train/val/test split.",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=Path,
+        default=project_root / "artifacts" / "dncnn_color_sigma25" / "checkpoints" / "best.pt",
+        help="DnCNN checkpoint evaluated in Table 1/2.",
+    )
+    parser.add_argument(
+        "--output-root",
+        type=Path,
+        default=project_root / "tables" / "tab1",
+        help="Where to write the held-out Table 1/2 CSV files.",
+    )
+    parser.add_argument(
+        "--sigma",
+        type=float,
+        default=0.1,
+        help="Gaussian noise standard deviation on the normalized [0, 1] scale.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="Seed used for synthetic AWGN generation.",
+    )
+    parser.add_argument(
+        "--limit-per-dataset",
+        type=int,
+        default=None,
+        help="Optional cap for quick smoke tests.",
+    )
+    return parser.parse_args()
 
 
-df = pd.read_csv("tables/tab1/tab1_raw.csv")
+def load_image(path: Path) -> np.ndarray:
+    return np.asarray(Image.open(path).convert("RGB"), dtype=np.float64) / 255.0
 
-mse_bsd100_df = df[df["Image ID"].str.contains("BSD100")].pivot_table(index="Image ID", columns="Method", values="MSE")
-psnr_bsd100_df = df[df["Image ID"].str.contains("BSD100")].pivot_table(index="Image ID", columns="Method", values="PSNR")
-ssim_bsd100_df = df[df["Image ID"].str.contains("BSD100")].pivot_table(index="Image ID", columns="Method", values="SSIM")
-perceptual_bsd100_df = df[df["Image ID"].str.contains("BSD100")].pivot_table(index="Image ID", columns="Method", values="Perceptual")
-mse_urban100_df = df[df["Image ID"].str.contains("Urban100")].pivot_table(index="Image ID", columns="Method", values="MSE")
-psnr_urban100_df = df[df["Image ID"].str.contains("Urban100")].pivot_table(index="Image ID", columns="Method", values="PSNR")
-ssim_urban100_df = df[df["Image ID"].str.contains("Urban100")].pivot_table(index="Image ID", columns="Method", values="SSIM")
-perceptual_urban100_df = df[df["Image ID"].str.contains("Urban100")].pivot_table(index="Image ID", columns="Method", values="Perceptual")
 
-order = ["Noisy", "Gaussian", "Median", "Wiener", "Bayesian Markov", "NLM", "BF"]
+def summarize(df: pd.DataFrame, dataset_name: str) -> pd.DataFrame:
+    metric_names = ["MSE", "PSNR", "SSIM", "Perceptual"]
+    rows = []
+    subset = df[df["Dataset"] == dataset_name]
 
-bsd100_summary_df = pd.DataFrame({
-    "Method": mse_bsd100_df.columns,
-    "MSE (mean)": mse_bsd100_df.mean().values,
-    "MSE (std)": mse_bsd100_df.std().values,
-    "PSNR (mean)": psnr_bsd100_df.mean().values,
-    "PSNR (std)": psnr_bsd100_df.std().values,
-    "SSIM (mean)": ssim_bsd100_df.mean().values,
-    "SSIM (std)": ssim_bsd100_df.std().values,
-    "Perceptual (mean)": perceptual_bsd100_df.mean().values,
-    "Perceptual (std)": perceptual_bsd100_df.std().values,
-})
-bsd100_summary_df = bsd100_summary_df.set_index("Method").loc[order].reset_index()
-bsd100_summary_df.to_csv("tables/tab1/tab1_stats_bsd100.csv", index=False)
-print(bsd100_summary_df)
+    for method in METHOD_ORDER:
+        method_df = subset[subset["Method"] == method]
+        if method_df.empty:
+            continue
+        row = {
+            "Method": method,
+            "Split": method_df["Split"].iloc[0],
+            "Count": int(method_df.shape[0]),
+        }
+        for metric_name in metric_names:
+            row[f"{metric_name} (mean)"] = float(method_df[metric_name].mean())
+            row[f"{metric_name} (std)"] = float(method_df[metric_name].std())
+        rows.append(row)
 
-urban100_summary_df = pd.DataFrame({
-    "Method": mse_urban100_df.columns,
-    "MSE (mean)": mse_urban100_df.mean().values,
-    "MSE (std)": mse_urban100_df.std().values,
-    "PSNR (mean)": psnr_urban100_df.mean().values,
-    "PSNR (std)": psnr_urban100_df.std().values,
-    "SSIM (mean)": ssim_urban100_df.mean().values,
-    "SSIM (std)": ssim_urban100_df.std().values,
-    "Perceptual (mean)": perceptual_urban100_df.mean().values,
-    "Perceptual (std)": perceptual_urban100_df.std().values,
-})
-urban100_summary_df = urban100_summary_df.set_index("Method").loc[order].reset_index()
-urban100_summary_df.to_csv("tables/tab1/tab1_stats_urban100.csv", index=False)
-print(urban100_summary_df)
+    return pd.DataFrame(rows)
+
+
+def evaluate_dataset(
+    dataset_name: str,
+    paths: list[Path],
+    sigma: float,
+    seed: int,
+    checkpoint: Path,
+) -> list[dict[str, object]]:
+    rng = np.random.default_rng(seed)
+    rows: list[dict[str, object]] = []
+
+    for path in paths:
+        clean = load_image(path)
+        noisy = imnoise(clean, sigma, rng)
+        image_id = path.stem
+
+        for method_name, handle, kwargs in CLASSICAL_METHODS:
+            _, mse_val, psnr_val, ssim_val, perceptual_val = get_result_rgb(handle, noisy, clean, **kwargs)
+            rows.append(
+                {
+                    "Dataset": dataset_name,
+                    "Image ID": image_id,
+                    "Split": "heldout",
+                    "Method": method_name,
+                    "MSE": mse_val,
+                    "PSNR": psnr_val,
+                    "SSIM": ssim_val,
+                    "Perceptual": perceptual_val,
+                }
+            )
+
+        _, mse_val, psnr_val, ssim_val, perceptual_val = get_result_rgb(
+            dncnn_denoise,
+            noisy,
+            clean,
+            checkpoint=checkpoint,
+        )
+        rows.append(
+            {
+                "Dataset": dataset_name,
+                "Image ID": image_id,
+                "Split": "heldout",
+                "Method": "DnCNN",
+                "MSE": mse_val,
+                "PSNR": psnr_val,
+                "SSIM": ssim_val,
+                "Perceptual": perceptual_val,
+            }
+        )
+
+    return rows
+
+
+def main() -> None:
+    args = parse_args()
+    args.output_root.mkdir(parents=True, exist_ok=True)
+
+    rows: list[dict[str, object]] = []
+
+    for dataset_name in ["BSD100", "Urban100"]:
+        paths = sorted((args.split_root / "val" / dataset_name).glob("*.png")) + sorted(
+            (args.split_root / "test" / dataset_name).glob("*.png")
+        )
+        if args.limit_per_dataset is not None:
+            paths = paths[: args.limit_per_dataset]
+        rows.extend(
+            evaluate_dataset(
+                dataset_name=dataset_name,
+                paths=paths,
+                sigma=args.sigma,
+                seed=args.seed,
+                checkpoint=args.checkpoint,
+            )
+        )
+
+    df = pd.DataFrame(rows)
+    df.to_csv(args.output_root / "tab1_raw.csv", index=False)
+
+    for dataset_name, filename in [("BSD100", "tab1_stats_bsd100.csv"), ("Urban100", "tab1_stats_urban100.csv")]:
+        summary_df = summarize(df, dataset_name)
+        ordered_methods = [method for method in METHOD_ORDER if method in set(summary_df["Method"])]
+        summary_df = summary_df.set_index("Method").loc[ordered_methods].reset_index()
+        summary_df.to_csv(args.output_root / filename, index=False)
+        print(summary_df)
+
+
+if __name__ == "__main__":
+    main()
