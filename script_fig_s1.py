@@ -1,3 +1,10 @@
+"""
+File Name: script_fig_s1.py
+Author: Kaibo
+Function: Sweeps NLM patch and search-window sizes for supplemental analysis.
+Reference: None.
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd

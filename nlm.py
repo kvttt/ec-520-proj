@@ -1,3 +1,10 @@
+"""
+File Name: nlm.py
+Author: kaibo
+Function: Implements non-local means denoising with NumPy and Numba kernels.
+Reference: Buades, Coll, and Morel (2005), https://doi.org/10.1137/040616024.
+"""
+
 from numba import njit, prange
 import numpy as np
 from scipy.ndimage import convolve

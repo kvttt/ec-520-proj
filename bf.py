@@ -1,28 +1,16 @@
-"""Bilateral filtering following Tomasi and Manduchi (ICCV 1998).
-
-This module implements the bilateral filter as a normalized weighted average
-with a Gaussian spatial kernel and a Gaussian range kernel:
-
-    h(x) = 1 / k(x) * sum_xi f(xi) c(xi, x) s(f(xi), f(x))
-
-where c measures spatial closeness and s measures photometric similarity.
-
-For RGB images, the paper recommends computing range similarity in CIE-Lab
-space. This implementation therefore converts RGB inputs to Lab, performs the
-filter in Lab, and converts the result back to RGB.
+"""
+File Name: bf.py
+Author: Jiatong
+Function: Implements bilateral filtering for grayscale, RGB, and CIE-Lab image denoising.
+Reference: Tomasi and Manduchi (1998), https://doi.org/10.1109/ICCV.1998.710815.
 """
 
 from __future__ import annotations
 
-# import argparse
 import math
-# import time
-# from pathlib import Path
 
-# import matplotlib.pyplot as plt
 from numba import njit, prange
 import numpy as np
-# from PIL import Image
 
 
 def _validate_positive(name: str, value: float) -> None:
@@ -31,7 +19,6 @@ def _validate_positive(name: str, value: float) -> None:
 
 
 def gaussian_spatial_kernel(radius: int, sigma_spatial: float) -> np.ndarray:
-    """Return the Gaussian spatial kernel c used by the bilateral filter."""
     _validate_positive("sigma_spatial", sigma_spatial)
     if radius < 0:
         raise ValueError(f"radius must be >= 0, got {radius}")
@@ -42,22 +29,105 @@ def gaussian_spatial_kernel(radius: int, sigma_spatial: float) -> np.ndarray:
     return np.exp(-0.5 * dist2 / (sigma_spatial * sigma_spatial))
 
 
+def _srgb_to_linear(rgb: np.ndarray) -> np.ndarray:
+    return np.where(
+        rgb <= 0.04045,
+        rgb / 12.92,
+        ((rgb + 0.055) / 1.055) ** 2.4,
+    )
+
+
+def _linear_to_srgb(rgb: np.ndarray) -> np.ndarray:
+    return np.where(
+        rgb <= 0.0031308,
+        12.92 * rgb,
+        1.055 * np.power(np.clip(rgb, 0.0, None), 1.0 / 2.4) - 0.055,
+    )
+
+
+def rgb_to_lab(rgb: np.ndarray) -> np.ndarray:
+    if rgb.ndim != 3 or rgb.shape[2] != 3:
+        raise ValueError("rgb_to_lab expects an array of shape (H, W, 3)")
+
+    rgb_linear = _srgb_to_linear(np.clip(rgb, 0.0, 1.0)).astype(np.float64)
+
+    xyz_matrix = np.array(
+        [
+            [0.4124564, 0.3575761, 0.1804375],
+            [0.2126729, 0.7151522, 0.0721750],
+            [0.0193339, 0.1191920, 0.9503041],
+        ],
+        dtype=np.float64,
+    )
+    xyz = rgb_linear @ xyz_matrix.T
+
+    white = np.array([0.95047, 1.00000, 1.08883], dtype=np.float64)
+    xyz_scaled = xyz / white
+
+    delta = 6.0 / 29.0
+    delta3 = delta ** 3
+    linear_term = xyz_scaled / (3.0 * delta * delta) + 4.0 / 29.0
+    f_xyz = np.where(xyz_scaled > delta3, np.cbrt(xyz_scaled), linear_term)
+
+    l = 116.0 * f_xyz[..., 1] - 16.0
+    a = 500.0 * (f_xyz[..., 0] - f_xyz[..., 1])
+    b = 200.0 * (f_xyz[..., 1] - f_xyz[..., 2])
+    return np.stack([l, a, b], axis=-1)
+
+
+def lab_to_rgb(lab: np.ndarray) -> np.ndarray:
+    if lab.ndim != 3 or lab.shape[2] != 3:
+        raise ValueError("lab_to_rgb expects an array of shape (H, W, 3)")
+
+    lab = lab.astype(np.float64)
+    fy = (lab[..., 0] + 16.0) / 116.0
+    fx = fy + lab[..., 1] / 500.0
+    fz = fy - lab[..., 2] / 200.0
+
+    delta = 6.0 / 29.0
+    f_stack = np.stack([fx, fy, fz], axis=-1)
+    xyz_scaled = np.where(
+        f_stack > delta,
+        f_stack ** 3,
+        3.0 * delta * delta * (f_stack - 4.0 / 29.0),
+    )
+
+    white = np.array([0.95047, 1.00000, 1.08883], dtype=np.float64)
+    xyz = xyz_scaled * white
+
+    rgb_matrix = np.array(
+        [
+            [3.2404542, -1.5371385, -0.4985314],
+            [-0.9692660, 1.8760108, 0.0415560],
+            [0.0556434, -0.2040259, 1.0572252],
+        ],
+        dtype=np.float64,
+    )
+    rgb_linear = xyz @ rgb_matrix.T
+    rgb = _linear_to_srgb(rgb_linear)
+    return np.clip(rgb, 0.0, 1.0)
+
+
+def _should_clip_output(image: np.ndarray, use_lab: bool) -> bool:
+    if use_lab or image.ndim == 2:
+        return True
+    return bool(np.min(image) >= 0.0 and np.max(image) <= 1.0)
+
+
 def bilateral_filter(
     image: np.ndarray,
     sigma_spatial: float,
     sigma_range: float,
     radius: int | None = None,
-    # use_lab: bool = True,
+    use_lab: bool = False,
 ) -> np.ndarray:
-    """Apply bilateral filtering to a grayscale or RGB image.
-
+    """
     Args:
         image: Input image as float array in [0, 1]. Shape (H, W) or (H, W, 3).
         sigma_spatial: Standard deviation of the Gaussian spatial kernel.
         sigma_range: Standard deviation of the Gaussian range kernel.
-            For RGB with ``use_lab=True``, this is measured in Lab units.
-        radius: Window radius. If None, use ceil(3 * sigma_spatial).
-        # use_lab: For RGB input, compute range similarity in Lab space.
+        radius: Window radius.
+        use_lab: For RGB input, compute range similarity in Lab space.
 
     Returns:
         Filtered image with the same shape as the input.
@@ -66,6 +136,7 @@ def bilateral_filter(
     _validate_positive("sigma_range", sigma_range)
 
     image = np.asarray(image, dtype=np.float64)
+    clip_output = _should_clip_output(image, use_lab)
     if image.ndim not in (2, 3):
         raise ValueError("image must have shape (H, W) or (H, W, 3)")
     if image.ndim == 3 and image.shape[2] != 3:
@@ -79,7 +150,7 @@ def bilateral_filter(
         work_image = image
         pad_width = ((radius, radius), (radius, radius))
     else:
-        work_image = image
+        work_image = rgb_to_lab(image) if use_lab else image
         pad_width = ((radius, radius), (radius, radius), (0, 0))
 
     padded = np.pad(work_image, pad_width, mode="reflect")
@@ -116,6 +187,10 @@ def bilateral_filter(
                 np.sum(weights[..., None] * patch, axis=(0, 1)) / np.sum(weights)
             )
 
+    if use_lab:
+        return lab_to_rgb(filtered)
+    if clip_output:
+        return np.clip(filtered, 0.0, 1.0)
     return filtered
 
 
@@ -161,11 +236,13 @@ def bilateral_filter_numba(
     sigma_spatial: float,
     sigma_range: float,
     radius: int | None = None,
+    use_lab: bool = False,
 ) -> np.ndarray:
     _validate_positive("sigma_spatial", sigma_spatial)
     _validate_positive("sigma_range", sigma_range)
 
     image = np.asarray(image, dtype=np.float64)
+    clip_output = _should_clip_output(image, use_lab)
     if image.ndim not in (2, 3):
         raise ValueError("image must have shape (H, W) or (H, W, 3)")
     if image.ndim == 3 and image.shape[2] != 3:
@@ -180,6 +257,8 @@ def bilateral_filter_numba(
     if image.ndim == 2:
         work_image = image[:, :, np.newaxis]
         squeeze_output = True
+    elif use_lab:
+        work_image = rgb_to_lab(image)
 
     padded = np.pad(
         work_image,
@@ -195,4 +274,8 @@ def bilateral_filter_numba(
 
     if squeeze_output:
         return np.clip(filtered[:, :, 0], 0.0, 1.0)
+    if use_lab:
+        return lab_to_rgb(filtered)
+    if clip_output:
+        return np.clip(filtered, 0.0, 1.0)
     return filtered
